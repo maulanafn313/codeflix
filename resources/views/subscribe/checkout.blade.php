@@ -43,12 +43,12 @@
                 </label>
             </div>
 
-            <form action="#" method="POST">
-                {{-- @csrf
-                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                <input type="hidden" name="total_payment" value="{{ $plan->price * 0.12 }}"> --}}
-                <button type="submit" class="w-100 btn btn-green" id="pay-button">Continue</button>
-            </form>
+            {{-- <form action="#" method="POST"> --}}
+            {{-- @csrf --}}
+            <input type="hidden" id="plan_id" name="plan_id" value="{{ $plan->id }}">
+            <input type="hidden" id="total_payment" name="total_payment" value="{{ $plan->price * 1.1 }}">
+            <button type="button" class="w-100 btn btn-green" id="pay-button">Continue</button>
+            {{-- </form> --}}
         </div>
     </div>
 @endsection
@@ -56,7 +56,7 @@
 @section('scripts')
     <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}">
     </script>
-    <script>
+    {{-- <script>
         const payButton = document.querySelector('#pay-button');
         payButton.addEventListener('click', function(e) {
             e.preventDefault(); // Prevent the default form submission
@@ -103,5 +103,48 @@
                 });
             })
         })
+    </script> --}}
+
+    <script>
+        // ...existing code...
+        document.getElementById('pay-button').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            fetch('/checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        plan_id: document.getElementById('plan_id').value,
+                        amount: parseInt(document.getElementById('total_payment').value)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.snap.pay(data.snap_token, {
+                            onSuccess: function(result) {
+                                window.location.href = '/subscribe/success';
+                            },
+                            onPending: function(result) {
+                                window.location.href = '/payment/pending';
+                            },
+                            onError: function(result) {
+                                window.location.href = '/payment/error';
+                            },
+                            onClose: function() {
+                                alert('Payment popup closed without completing the payment.');
+                            }
+                        });
+                    } else {
+                        alert(data.message || 'Payment initialization failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    alert('An error occurred while processing your payment. Please try again.');
+                });
+        });
     </script>
 @endsection
